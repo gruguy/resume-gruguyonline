@@ -1,18 +1,45 @@
 'use client';
-import React, { useCallback, useMemo, useState } from 'react';
-import { createEditor } from 'slate';
-import { Slate, Editable, withReact } from 'slate-react';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
+import { createEditor, Descendant, BaseEditor } from 'slate';
+import { Slate, Editable, withReact, ReactEditor } from 'slate-react';
 import { Button } from 'antd';
 import { BoldOutlined, ItalicOutlined, UnderlineOutlined } from '@ant-design/icons';
 
 // 👇 永远不会报错的初始值
 const EMPTY_VALUE = [{ type: 'paragraph', children: [{ text: '' }] }];
 
-export default function RichTextEditor() {
-  const editor = useMemo(() => withReact(createEditor()), []);
-  const [value, setValue] = useState(EMPTY_VALUE);
+interface RichTextEditorProps {
+  value: string;
+  onChange: (value: string) => void;
+}
 
-  const renderElement = useCallback((props) => {
+// 扩展Editor类型
+type CustomEditor = BaseEditor & ReactEditor;
+
+export default function RichTextEditor({ value, onChange }: RichTextEditorProps) {
+  const editor = useMemo(() => withReact(createEditor()) as CustomEditor, []);
+  const [slateValue, setSlateValue] = useState<Descendant[]>(EMPTY_VALUE);
+
+  // 从字符串转换为Slate值
+  useEffect(() => {
+    try {
+      if (value) {
+        const parsedValue = JSON.parse(value);
+        setSlateValue(parsedValue);
+      } else {
+        setSlateValue(EMPTY_VALUE);
+      }
+    } catch (error) {
+      setSlateValue(EMPTY_VALUE);
+    }
+  }, [value]);
+
+  const handleChange = (newValue: Descendant[]) => {
+    setSlateValue(newValue);
+    onChange(JSON.stringify(newValue));
+  };
+
+  const renderElement = useCallback((props: any) => {
     switch (props.element.type) {
       case 'heading-one': return <h1 {...props.attributes}>{props.children}</h1>;
       case 'heading-two': return <h2 {...props.attributes}>{props.children}</h2>;
@@ -23,7 +50,7 @@ export default function RichTextEditor() {
     }
   }, []);
 
-  const renderLeaf = useCallback((props) => {
+  const renderLeaf = useCallback((props: any) => {
     let child = props.children;
     if (props.leaf.bold) child = <strong>{child}</strong>;
     if (props.leaf.italic) child = <em>{child}</em>;
@@ -34,13 +61,13 @@ export default function RichTextEditor() {
   return (
     <div>
       <div style={{ marginBottom: 8, gap: 8, display: 'flex' }}>
-        <Button size="small" icon={<BoldOutlined />} onClick={() => editor.toggleMark('bold')} />
-        <Button size="small" icon={<ItalicOutlined />} onClick={() => editor.toggleMark('italic')} />
-        <Button size="small" icon={<UnderlineOutlined />} onClick={() => editor.toggleMark('underline')} />
+        <Button size="small" icon={<BoldOutlined />} />
+        <Button size="small" icon={<ItalicOutlined />} />
+        <Button size="small" icon={<UnderlineOutlined />} />
       </div>
 
       {/* 👇 最干净、最不会报错的写法 */}
-      <Slate editor={editor} initialValue={EMPTY_VALUE} onChange={setValue}>
+      <Slate editor={editor} initialValue={slateValue} onChange={handleChange}>
         <Editable
           renderElement={renderElement}
           renderLeaf={renderLeaf}

@@ -1,10 +1,17 @@
 'use client';
-import React, { useState } from 'react';
-import { Layout, Input, Button, Card, Form, Select, Upload, message, Menu, Collapse, Divider } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Layout, Input, Button, Card, Form, Select, Upload, message, Menu, Collapse, Divider, DatePicker } from 'antd';
 const { TextArea } = Input;
 import type { UploadProps } from 'antd';
 import { UploadOutlined, MenuUnfoldOutlined, MenuFoldOutlined, PlusOutlined } from '@ant-design/icons';
 import RichTextEditor from '@/components/RichTextEditor';
+import BasicInfo from '@/components/resume/BasicInfo';
+import Education from '@/components/resume/Education';
+import Experience from '@/components/resume/Experience';
+import Skills from '@/components/resume/Skills';
+import Projects from '@/components/resume/Projects';
+import SelfIntro from '@/components/resume/SelfIntro';
+import { useThemeStore } from '@/stores/theme';
 
 const { Header, Content, Sider } = Layout;
 const { Panel } = Collapse;
@@ -49,6 +56,31 @@ interface ResumeData {
 }
 
 export default function Home() {
+  const themeStore = useThemeStore();
+  
+  // 添加全局样式来隐藏滚动条但保持滚动功能
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      /* 隐藏滚动条但保持滚动功能 */
+      .ant-card-body::-webkit-scrollbar,
+      .ant-card::-webkit-scrollbar {
+        display: none;
+      }
+      
+      .ant-card-body,
+      .ant-card {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+  
   const [resumeData, setResumeData] = useState<ResumeData>({
     basicInfo: {
       name: '',
@@ -91,10 +123,10 @@ export default function Home() {
   const handleChange = (field: string, value: any, index?: number) => {
     if (index !== undefined) {
       const newData = { ...resumeData };
-      if (Array.isArray(newData[field as keyof ResumeData])) {
+      if (field === 'education' || field === 'experience' || field === 'skills' || field === 'projects') {
         const array = [...newData[field as keyof ResumeData] as any];
         array[index] = { ...array[index], ...value };
-        newData[field as keyof ResumeData] = array;
+        (newData as any)[field] = array;
       }
       setResumeData(newData);
     } else {
@@ -143,10 +175,10 @@ export default function Home() {
 
   const removeItem = (field: string, index: number) => {
     const newData = { ...resumeData };
-    if (Array.isArray(newData[field as keyof ResumeData])) {
+    if (field === 'education' || field === 'experience' || field === 'skills' || field === 'projects') {
       const array = [...newData[field as keyof ResumeData] as any];
       array.splice(index, 1);
-      newData[field as keyof ResumeData] = array;
+      (newData as any)[field] = array;
     }
     setResumeData(newData);
   };
@@ -234,7 +266,18 @@ export default function Home() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(resumeData),
+        body: JSON.stringify({
+          ...resumeData,
+          theme: {
+            fontFamily: themeStore.fontFamily,
+            fontSize: themeStore.fontSize,
+            lineHeight: themeStore.lineHeight,
+            primaryColor: themeStore.primaryColor,
+            padding: themeStore.padding,
+            margin: themeStore.margin,
+            templateStyle: themeStore.templateStyle,
+          },
+        }),
       });
       
       if (response.ok) {
@@ -269,282 +312,54 @@ export default function Home() {
   ];
 
   const renderEditContent = () => {
-    switch (activeMenuKey) {
-      case 'basic':
-        return (
-          <Form layout="vertical">
-            <Form.Item label="姓名">
-              <Input 
-                value={resumeData.basicInfo.name} 
-                onChange={(e) => handleChange('basicInfo', { ...resumeData.basicInfo, name: e.target.value })} 
-              />
-            </Form.Item>
-            <Form.Item label="性别">
-              <Select 
-                value={resumeData.basicInfo.gender} 
-                onChange={(value) => handleChange('basicInfo', { ...resumeData.basicInfo, gender: value })} 
-                options={[
-                  { value: '男', label: '男' },
-                  { value: '女', label: '女' },
-                ]}
-              />
-            </Form.Item>
-            <Form.Item label="年龄">
-              <Input 
-                value={resumeData.basicInfo.age} 
-                onChange={(e) => handleChange('basicInfo', { ...resumeData.basicInfo, age: e.target.value })} 
-              />
-            </Form.Item>
-            <Form.Item label="电话">
-              <Input 
-                value={resumeData.basicInfo.phone} 
-                onChange={(e) => handleChange('basicInfo', { ...resumeData.basicInfo, phone: e.target.value })} 
-              />
-            </Form.Item>
-            <Form.Item label="邮箱">
-              <Input 
-                value={resumeData.basicInfo.email} 
-                onChange={(e) => handleChange('basicInfo', { ...resumeData.basicInfo, email: e.target.value })} 
-              />
-            </Form.Item>
-            <Form.Item label="地址">
-              <Input 
-                value={resumeData.basicInfo.address} 
-                onChange={(e) => handleChange('basicInfo', { ...resumeData.basicInfo, address: e.target.value })} 
-              />
-            </Form.Item>
-            <Form.Item label="头像">
-              <Upload {...uploadProps}>
-                <Button icon={<UploadOutlined />}>上传头像</Button>
-              </Upload>
-            </Form.Item>
-          </Form>
-        );
-      case 'education':
-        return (
-          <>
-            {resumeData.education.map((item, index) => (
-              <Card key={index} style={{ marginBottom: '16px' }}>
-                <Form layout="vertical">
-                  <Form.Item label="学校">
-                    <Input 
-                      value={item.school} 
-                      onChange={(e) => handleChange('education', { ...item, school: e.target.value }, index)} 
-                    />
-                  </Form.Item>
-                  <Form.Item label="专业">
-                    <Input 
-                      value={item.major} 
-                      onChange={(e) => handleChange('education', { ...item, major: e.target.value }, index)} 
-                    />
-                  </Form.Item>
-                  <Form.Item label="学历">
-                    <Select 
-                      value={item.degree} 
-                      onChange={(value) => handleChange('education', { ...item, degree: value }, index)} 
-                      options={[
-                        { value: '高中', label: '高中' },
-                        { value: '大专', label: '大专' },
-                        { value: '本科', label: '本科' },
-                        { value: '硕士', label: '硕士' },
-                        { value: '博士', label: '博士' },
-                      ]}
-                    />
-                  </Form.Item>
-                  <Form.Item label="开始日期">
-                    <Input 
-                      value={item.startDate} 
-                      onChange={(e) => handleChange('education', { ...item, startDate: e.target.value }, index)} 
-                      placeholder="YYYY-MM"
-                    />
-                  </Form.Item>
-                  <Form.Item label="结束日期">
-                    <Input 
-                      value={item.endDate} 
-                      onChange={(e) => handleChange('education', { ...item, endDate: e.target.value }, index)} 
-                      placeholder="YYYY-MM"
-                    />
-                  </Form.Item>
-                  <Form.Item label="描述">
-                    <RichTextEditor 
-                      value={item.description} 
-                      onChange={(value) => handleChange('education', { ...item, description: value }, index)} 
-                    />
-                  </Form.Item>
-                  <Button 
-                    type="danger" 
-                    onClick={() => removeItem('education', index)}
-                    style={{ marginTop: '8px' }}
-                  >
-                    删除
-                  </Button>
-                </Form>
-              </Card>
-            ))}
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => addItem('education')}>
-              添加教育经历
-            </Button>
-          </>
-        );
-      case 'experience':
-        return (
-          <>
-            {resumeData.experience.map((item, index) => (
-              <Card key={index} style={{ marginBottom: '16px' }}>
-                <Form layout="vertical">
-                  <Form.Item label="公司">
-                    <Input 
-                      value={item.company} 
-                      onChange={(e) => handleChange('experience', { ...item, company: e.target.value }, index)} 
-                    />
-                  </Form.Item>
-                  <Form.Item label="职位">
-                    <Input 
-                      value={item.position} 
-                      onChange={(e) => handleChange('experience', { ...item, position: e.target.value }, index)} 
-                    />
-                  </Form.Item>
-                  <Form.Item label="开始日期">
-                    <Input 
-                      value={item.startDate} 
-                      onChange={(e) => handleChange('experience', { ...item, startDate: e.target.value }, index)} 
-                      placeholder="YYYY-MM"
-                    />
-                  </Form.Item>
-                  <Form.Item label="结束日期">
-                    <Input 
-                      value={item.endDate} 
-                      onChange={(e) => handleChange('experience', { ...item, endDate: e.target.value }, index)} 
-                      placeholder="YYYY-MM"
-                    />
-                  </Form.Item>
-                  <Form.Item label="描述">
-                    <RichTextEditor 
-                      value={item.description} 
-                      onChange={(value) => handleChange('experience', { ...item, description: value }, index)} 
-                    />
-                  </Form.Item>
-                  <Button 
-                    type="danger" 
-                    onClick={() => removeItem('experience', index)}
-                    style={{ marginTop: '8px' }}
-                  >
-                    删除
-                  </Button>
-                </Form>
-              </Card>
-            ))}
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => addItem('experience')}>
-              添加工作经验
-            </Button>
-          </>
-        );
-      case 'skills':
-        return (
-          <>
-            {resumeData.skills.map((item, index) => (
-              <Card key={index} style={{ marginBottom: '16px' }}>
-                <Form layout="vertical">
-                  <Form.Item label="技能名称">
-                    <Input 
-                      value={item.name} 
-                      onChange={(e) => handleChange('skills', { ...item, name: e.target.value }, index)} 
-                    />
-                  </Form.Item>
-                  <Form.Item label="熟练程度">
-                    <Select 
-                      value={item.level} 
-                      onChange={(value) => handleChange('skills', { ...item, level: value }, index)} 
-                      options={[
-                        { value: '入门', label: '入门' },
-                        { value: '熟悉', label: '熟悉' },
-                        { value: '精通', label: '精通' },
-                      ]}
-                    />
-                  </Form.Item>
-                  <Button 
-                    type="danger" 
-                    onClick={() => removeItem('skills', index)}
-                    style={{ marginTop: '8px' }}
-                  >
-                    删除
-                  </Button>
-                </Form>
-              </Card>
-            ))}
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => addItem('skills')}>
-              添加技能
-            </Button>
-          </>
-        );
-      case 'projects':
-        return (
-          <>
-            {resumeData.projects.map((item, index) => (
-              <Card key={index} style={{ marginBottom: '16px' }}>
-                <Form layout="vertical">
-                  <Form.Item label="项目名称">
-                    <Input 
-                      value={item.name} 
-                      onChange={(e) => handleChange('projects', { ...item, name: e.target.value }, index)} 
-                    />
-                  </Form.Item>
-                  <Form.Item label="角色">
-                    <Input 
-                      value={item.role} 
-                      onChange={(e) => handleChange('projects', { ...item, role: e.target.value }, index)} 
-                    />
-                  </Form.Item>
-                  <Form.Item label="开始日期">
-                    <Input 
-                      value={item.startDate} 
-                      onChange={(e) => handleChange('projects', { ...item, startDate: e.target.value }, index)} 
-                      placeholder="YYYY-MM"
-                    />
-                  </Form.Item>
-                  <Form.Item label="结束日期">
-                    <Input 
-                      value={item.endDate} 
-                      onChange={(e) => handleChange('projects', { ...item, endDate: e.target.value }, index)} 
-                      placeholder="YYYY-MM"
-                    />
-                  </Form.Item>
-                  <Form.Item label="描述">
-                    <RichTextEditor 
-                      value={item.description} 
-                      onChange={(value) => handleChange('projects', { ...item, description: value }, index)} 
-                    />
-                  </Form.Item>
-                  <Button 
-                    type="danger" 
-                    onClick={() => removeItem('projects', index)}
-                    style={{ marginTop: '8px' }}
-                  >
-                    删除
-                  </Button>
-                </Form>
-              </Card>
-            ))}
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => addItem('projects')}>
-              添加项目经验
-            </Button>
-          </>
-        );
-      case 'selfIntro':
-        return (
-          <Form layout="vertical">
-            <Form.Item label="自我评价">
-              <TextArea 
-                value={resumeData.selfIntro} 
-                onChange={(e) => handleChange('selfIntro', e.target.value)} 
-                rows={6}
-              />
-            </Form.Item>
-          </Form>
-        );
-      default:
-        return null;
-    }
+    return (
+      <Collapse activeKey={[activeMenuKey]} accordion onChange={(keys) => setActiveMenuKey(keys[0] as string)}>
+        <Panel header="基本信息" key="basic">
+          <BasicInfo 
+            basicInfo={resumeData.basicInfo} 
+            onChange={(value) => handleChange('basicInfo', value)} 
+          />
+        </Panel>
+        <Panel header="教育经历" key="education">
+          <Education 
+            education={resumeData.education} 
+            onAdd={() => addItem('education')} 
+            onRemove={(index) => removeItem('education', index)} 
+            onChange={(index, value) => handleChange('education', value, index)} 
+          />
+        </Panel>
+        <Panel header="工作经验" key="experience">
+          <Experience 
+            experience={resumeData.experience} 
+            onAdd={() => addItem('experience')} 
+            onRemove={(index) => removeItem('experience', index)} 
+            onChange={(index, value) => handleChange('experience', value, index)} 
+          />
+        </Panel>
+        <Panel header="专业技能" key="skills">
+          <Skills 
+            skills={resumeData.skills} 
+            onAdd={() => addItem('skills')} 
+            onRemove={(index) => removeItem('skills', index)} 
+            onChange={(index, value) => handleChange('skills', value, index)} 
+          />
+        </Panel>
+        <Panel header="项目经验" key="projects">
+          <Projects 
+            projects={resumeData.projects} 
+            onAdd={() => addItem('projects')} 
+            onRemove={(index) => removeItem('projects', index)} 
+            onChange={(index, value) => handleChange('projects', value, index)} 
+          />
+        </Panel>
+        <Panel header="个人简介" key="selfIntro">
+          <SelfIntro 
+            selfIntro={resumeData.selfIntro} 
+            onChange={(value) => handleChange('selfIntro', value)} 
+          />
+        </Panel>
+      </Collapse>
+    );
   };
 
   return (
@@ -572,7 +387,7 @@ export default function Home() {
           />
         </Sider>
         <Content style={{ padding: '24px' }}>
-          <Card title={menuItems.find(item => item.key === activeMenuKey)?.label || '简历编辑'} style={{ marginBottom: '24px' }}>
+          <Card title="简历编辑" style={{ marginBottom: '24px', maxHeight: 'calc(100vh - 150px)', overflow: 'auto' }}>
             {renderEditContent()}
           </Card>
         </Content>
@@ -584,9 +399,88 @@ export default function Home() {
               <Button size="small">智能编辑</Button>
             </div>
           </div>
-          <Card style={{ height: 'calc(100vh - 150px)', overflow: 'auto' }}>
-            <div style={{ padding: '20px', background: '#fff', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-              <div style={{ backgroundColor: '#722ed1', color: '#fff', padding: '20px', borderRadius: '8px 8px 0 0' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px', padding: '12px', background: '#fff', borderRadius: '8px' }}>
+            <Button size="small">基础布局</Button>
+            <Button size="small">智能纠错</Button>
+            <Select
+              size="small"
+              defaultValue={themeStore.fontFamily}
+              style={{ width: 120 }}
+              onChange={(value) => themeStore.updateFontFamily(value)}
+              options={[
+                { value: 'Microsoft YaHei', label: '微软雅黑' },
+                { value: 'SimSun', label: '宋体' },
+                { value: 'SimHei', label: '黑体' },
+                { value: 'Arial', label: 'Arial' },
+              ]}
+            />
+            <Select
+              size="small"
+              defaultValue={themeStore.fontSize}
+              style={{ width: 80 }}
+              onChange={(value) => themeStore.updateFontSize(value)}
+              options={[
+                { value: '12', label: '12px' },
+                { value: '14', label: '14px' },
+                { value: '16', label: '16px' },
+                { value: '18', label: '18px' },
+              ]}
+            />
+            <Select
+              size="small"
+              defaultValue={themeStore.lineHeight}
+              style={{ width: 80 }}
+              onChange={(value) => themeStore.updateLineHeight(value)}
+              options={[
+                { value: '20', label: '20px' },
+                { value: '24', label: '24px' },
+                { value: '27', label: '27px' },
+                { value: '30', label: '30px' },
+              ]}
+            />
+            <Input
+              size="small"
+              type="color"
+              defaultValue={themeStore.primaryColor}
+              style={{ width: 80, height: 32 }}
+              onChange={(e) => themeStore.updatePrimaryColor(e.target.value)}
+            />
+            <Select
+              size="small"
+              defaultValue={themeStore.templateStyle}
+              style={{ width: 100 }}
+              onChange={(value) => themeStore.updateTemplateStyle(value)}
+              options={[
+                { value: 'basic', label: '基础模板' },
+                { value: 'modern', label: '现代模板' },
+                { value: 'classic', label: '经典模板' },
+              ]}
+            />
+            <Button size="small">添加模块</Button>
+            <Select
+              size="small"
+              defaultValue={themeStore.padding}
+              style={{ width: 100 }}
+              onChange={(value) => themeStore.updatePadding(value)}
+              options={[
+                { value: '10px', label: '10px' },
+                { value: '20px', label: '20px' },
+                { value: '30px', label: '30px' },
+                { value: '40px', label: '40px' },
+              ]}
+            />
+          </div>
+          <Card style={{ height: 'calc(100vh - 280px)', overflow: 'auto' }}>
+            <div style={{ 
+              padding: themeStore.padding, 
+              background: '#fff', 
+              borderRadius: '8px', 
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+              fontFamily: themeStore.fontFamily,
+              fontSize: `${themeStore.fontSize}px`,
+              lineHeight: `${themeStore.lineHeight}px`
+            }}>
+              <div style={{ backgroundColor: themeStore.primaryColor, color: '#fff', padding: '20px', borderRadius: '8px 8px 0 0' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <h2 style={{ margin: '0 0 10px 0' }}>{resumeData.basicInfo.name || '姓名'}</h2>
@@ -604,7 +498,7 @@ export default function Home() {
               </div>
               <div style={{ padding: '20px' }}>
                 <div style={{ marginBottom: '20px' }}>
-                  <h3 style={{ color: '#722ed1', margin: '0 0 10px 0', fontSize: '16px' }}>教育经历</h3>
+                  <h3 style={{ color: themeStore.primaryColor, margin: '0 0 10px 0', fontSize: '16px' }}>教育经历</h3>
                   {resumeData.education.map((item, index) => (
                     <div key={index} style={{ marginBottom: '15px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
@@ -617,7 +511,7 @@ export default function Home() {
                   ))}
                 </div>
                 <div style={{ marginBottom: '20px' }}>
-                  <h3 style={{ color: '#722ed1', margin: '0 0 10px 0', fontSize: '16px' }}>工作经验</h3>
+                  <h3 style={{ color: themeStore.primaryColor, margin: '0 0 10px 0', fontSize: '16px' }}>工作经验</h3>
                   {resumeData.experience.map((item, index) => (
                     <div key={index} style={{ marginBottom: '15px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
@@ -630,7 +524,7 @@ export default function Home() {
                   ))}
                 </div>
                 <div style={{ marginBottom: '20px' }}>
-                  <h3 style={{ color: '#722ed1', margin: '0 0 10px 0', fontSize: '16px' }}>专业技能</h3>
+                  <h3 style={{ color: themeStore.primaryColor, margin: '0 0 10px 0', fontSize: '16px' }}>专业技能</h3>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
                     {resumeData.skills.map((item, index) => (
                       <div key={index} style={{ background: '#f5f5f5', padding: '5px 10px', borderRadius: '4px', fontSize: '12px' }}>
@@ -640,7 +534,7 @@ export default function Home() {
                   </div>
                 </div>
                 <div style={{ marginBottom: '20px' }}>
-                  <h3 style={{ color: '#722ed1', margin: '0 0 10px 0', fontSize: '16px' }}>项目经验</h3>
+                  <h3 style={{ color: themeStore.primaryColor, margin: '0 0 10px 0', fontSize: '16px' }}>项目经验</h3>
                   {resumeData.projects.map((item, index) => (
                     <div key={index} style={{ marginBottom: '15px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
@@ -653,7 +547,7 @@ export default function Home() {
                   ))}
                 </div>
                 <div>
-                  <h3 style={{ color: '#722ed1', margin: '0 0 10px 0', fontSize: '16px' }}>自我评价</h3>
+                  <h3 style={{ color: themeStore.primaryColor, margin: '0 0 10px 0', fontSize: '16px' }}>自我评价</h3>
                   <p style={{ fontSize: '14px', lineHeight: '1.5', margin: 0 }}>{resumeData.selfIntro || '自我评价'}</p>
                 </div>
               </div>
